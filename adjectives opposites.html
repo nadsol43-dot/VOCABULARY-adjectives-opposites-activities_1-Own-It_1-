@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Opposites Quiz & Match</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: "Comic Sans MS", "Chalkboard SE", Arial, sans-serif;
+  background: linear-gradient(135deg, #fef3c7 0%, #fce7f3 100%);
+  min-height: 100vh; padding: 20px;
+}
+h1 {
+  text-align: center; font-size: 48px; margin-bottom: 10px;
+  color: #e63946; text-shadow: 3px 3px 0 #fff;
+}
+.tabs {
+  display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;
+}
+.tab {
+  padding: 14px 30px; font-size: 22px; font-weight: bold;
+  border: 3px solid #333; border-radius: 30px; cursor: pointer;
+  background: #fff; transition: all .2s;
+}
+.tab:hover { transform: scale(1.05); }
+.tab.active { background: #ffd166; color: #333; }
+.section { display: none; max-width: 900px; margin: 0 auto; }
+.section.active { display: block; }
+
+/* QUIZ */
+.quiz-card {
+  background: #fff; border-radius: 20px; padding: 25px;
+  margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,.08);
+  border-left: 8px solid;
+}
+.quiz-card .emoji { font-size: 44px; margin-right: 10px; }
+.quiz-card .prompt { font-size: 22px; font-weight: bold; }
+.quiz-card input {
+  font-size: 20px; padding: 8px 14px; border: 3px solid #ccc;
+  border-radius: 12px; margin-left: 10px; width: 160px;
+  font-family: inherit;
+}
+.quiz-card input.correct { border-color: #06a77d; background: #d1fae5; }
+.quiz-card input.wrong { border-color: #e63946; background: #fee2e2; }
+.quiz-card .feedback {
+  margin-top: 8px; font-size: 18px; font-weight: bold; min-height: 24px;
+}
+.quiz-card .feedback.ok { color: #06a77d; }
+.quiz-card .feedback.no { color: #e63946; }
+.btn {
+  display: block; margin: 20px auto; padding: 14px 32px;
+  font-size: 20px; font-weight: bold; border: none;
+  border-radius: 30px; cursor: pointer; background: #06a77d;
+  color: #fff; box-shadow: 0 4px 0 #047857;
+  font-family: inherit;
+}
+.btn:active { transform: translateY(4px); box-shadow: none; }
+.btn.secondary { background: #3b82f6; box-shadow: 0 4px 0 #1e40af; }
+.score {
+  text-align: center; font-size: 26px; font-weight: bold;
+  margin: 15px 0; color: #333;
+}
+
+/* MATCHING */
+.match-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+  max-width: 700px; margin: 0 auto;
+}
+.match-col { display: flex; flex-direction: column; gap: 10px; }
+.match-btn {
+  padding: 16px; font-size: 20px; font-weight: bold;
+  border: 3px solid #333; border-radius: 14px; cursor: pointer;
+  background: #fff; font-family: inherit; transition: all .15s;
+}
+.match-btn:hover { transform: scale(1.03); }
+.match-btn.selected { background: #ffd166; border-color: #e63946; }
+.match-btn.matched {
+  background: #d1fae5; border-color: #06a77d;
+  cursor: default; opacity: .7;
+}
+.match-btn.wrong {
+  animation: shake .4s; background: #fee2e2; border-color: #e63946;
+}
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}
+.match-status {
+  text-align: center; font-size: 20px; font-weight: bold;
+  margin: 15px 0; min-height: 28px;
+}
+</style>
+</head>
+<body>
+
+<h1>🌈 OPPOSITES 🌈</h1>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('quiz')">📝 Quiz</button>
+  <button class="tab" onclick="showTab('match')">🧩 Matching</button>
+</div>
+
+<!-- QUIZ SECTION -->
+<div id="quiz" class="section active">
+  <div class="score">Score: <span id="score">0</span> / <span id="total">0</span></div>
+  <div id="quiz-list"></div>
+  <button class="btn" onclick="checkQuiz()">✔ Check Answers</button>
+  <button class="btn secondary" onclick="resetQuiz()">🔄 New Quiz</button>
+</div>
+
+<!-- MATCHING SECTION -->
+<div id="match" class="section">
+  <div class="match-status" id="match-status">Click a word on the left, then its opposite on the right!</div>
+  <div class="match-grid">
+    <div class="match-col" id="left-col"></div>
+    <div class="match-col" id="right-col"></div>
+  </div>
+  <button class="btn secondary" onclick="resetMatch()">🔄 Shuffle</button>
+</div>
+
+<script>
+// ============ DATA ============
+const allPairs = [
+  {a:"big",    b:"small",   emoji:"🐘 ↔ 🐭", color:"#ffe066"},
+  {a:"large",  b:"little",  emoji:"🐘 ↔ 🐭", color:"#ffe066"},
+  {a:"tall",   b:"short",   emoji:"🦒 ↔ 🐧", color:"#ffc2d4"},
+  {a:"long",   b:"short",   emoji:"🐍 ↔ 🪱", color:"#b8f2d8"},
+  {a:"heavy",  b:"light",   emoji:"🏋️ ↔ 🪶", color:"#a8dfff"},
+  {a:"hot",    b:"cold",    emoji:"☕ ↔ ⛄",  color:"#ffd8a8"},
+  {a:"wet",    b:"dry",     emoji:"🌧️ ↔ 🌵", color:"#d9c9ff"},
+  {a:"clean",  b:"dirty",   emoji:"🍽️✨ ↔ 🍽️🪰", color:"#ffe5c2"},
+  {a:"full",   b:"empty",   emoji:"🥤 ↔ 🫙", color:"#b2f2ea"},
+  {a:"open",   b:"closed",  emoji:"🚪 ↔ 🔒", color:"#ffb3a7"},
+  {a:"fast",   b:"slow",    emoji:"🐆 ↔ 🐢", color:"#c7f9cc"},
+  {a:"happy",  b:"sad",     emoji:"😄 ↔ 😢", color:"#ffd6e0"},
+  {a:"up",     b:"down",    emoji:"🎈 ↔ 🍎", color:"#ffeaa7"},
+  {a:"quiet",  b:"loud",    emoji:"🦊💤 ↔ 🥁", color:"#dfe6e9"},
+  {a:"day",    b:"night",   emoji:"☀️ ↔ 🌙", color:"#a8e6cf"},
+  {a:"above",  b:"below",   emoji:"🐦 ↔ 🐟", color:"#b8d4e3"},
+  {a:"near",   b:"far",     emoji:"🏠 ↔ 🏔️", color:"#f8b500"},
+  {a:"hard",   b:"soft",    emoji:"🪨 ↔ 🛋️", color:"#c9b1ff"},
+  {a:"thick",  b:"thin",    emoji:"📗 ↔ 📘", color:"#ffd3b6"},
+  {a:"wide",   b:"narrow",  emoji:"🛋️ ↔ 🪑", color:"#a0e7e5"},
+  {a:"push",   b:"pull",    emoji:"📦 ↔ 🪢", color:"#ffb4a2"},
+  {a:"give",   b:"take",    emoji:"🎁 ↔ 🤲", color:"#b5ead7"},
+  {a:"come",   b:"go",      emoji:"🏃 ↔ 🚶", color:"#c7ceea"},
+  {a:"sit",    b:"stand",   emoji:"🪑 ↔ 🧍", color:"#ffdac1"},
+  {a:"cool",   b:"hot",     emoji:"❄️ ↔ 🔥", color:"#a2d2ff"},
+  {a:"old",    b:"new",     emoji:"👟🩹 ↔ 👟✨", color:"#e8e8e4"},
+];
+
+// ============ TABS ============
+function showTab(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ============ QUIZ ============
+let quizPairs = [];
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function buildQuiz() {
+  quizPairs = shuffle(allPairs).slice(0, 12);
+  const list = document.getElementById('quiz-list');
+  list.innerHTML = '';
+  document.getElementById('total').textContent = quizPairs.length;
+  document.getElementById('score').textContent = '0';
+  quizPairs.forEach((p, i) => {
+    const askA = Math.random() < 0.5;
+    const prompt = askA ? p.a : p.b;
+    const answer = askA ? p.b : p.a;
+    const card = document.createElement('div');
+    card.className = 'quiz-card';
+    card.style.borderLeftColor = p.color;
+    card.innerHTML = `
+      <div class="prompt">
+        <span class="emoji">${p.emoji}</span>
+        The opposite of <strong>${prompt}</strong> is:
+        <input type="text" data-answer="${answer}" placeholder="type here">
+      </div>
+      <div class="feedback"></div>`;
+    list.appendChild(card);
+  });
+}
+function checkQuiz() {
+  let score = 0;
+  document.querySelectorAll('#quiz-list input').forEach(inp => {
+    const fb = inp.parentElement.nextElementSibling;
+    const val = inp.value.trim().toLowerCase();
+    const ans = inp.dataset.answer;
+    if (val === ans) {
+      inp.classList.add('correct'); inp.classList.remove('wrong');
+      fb.className = 'feedback ok'; fb.textContent = '✔ Correct!';
+      score++;
+    } else {
+      inp.classList.add('wrong'); inp.classList.remove('correct');
+      fb.className = 'feedback no';
+      fb.textContent = `✘ The answer is: ${ans}`;
+    }
+  });
+  document.getElementById('score').textContent = score;
+}
+function resetQuiz() { buildQuiz(); }
+
+// ============ MATCHING ============
+let matchPairs = [];
+let selectedLeft = null;
+let matchedCount = 0;
+function buildMatch() {
+  matchPairs = shuffle(allPairs).slice(0, 8);
+  const leftCol = document.getElementById('left-col');
+  const rightCol = document.getElementById('right-col');
+  leftCol.innerHTML = ''; rightCol.innerHTML = '';
+  matchedCount = 0;
+  selectedLeft = null;
+  document.getElementById('match-status').textContent = 'Click a word on the left, then its opposite on the right!';
+
+  const leftWords = shuffle(matchPairs.map((p,i) => ({word: p.a, idx: i})));
+  const rightWords = shuffle(matchPairs.map((p,i) => ({word: p.b, idx: i})));
+
+  leftWords.forEach(item => {
+    const btn = document.createElement('button');
+    btn.className = 'match-btn';
+    btn.textContent = item.word;
+    btn.dataset.idx = item.idx;
+    btn.dataset.side = 'left';
+    btn.onclick = () => pickLeft(btn);
+    leftCol.appendChild(btn);
+  });
+  rightWords.forEach(item => {
+    const btn = document.createElement('button');
+    btn.className = 'match-btn';
+    btn.textContent = item.word;
+    btn.dataset.idx = item.idx;
+    btn.dataset.side = 'right';
+    btn.onclick = () => pickRight(btn);
+    rightCol.appendChild(btn);
+  });
+}
+function pickLeft(btn) {
+  if (btn.classList.contains('matched')) return;
+  document.querySelectorAll('#left-col .match-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedLeft = btn;
+}
+function pickRight(btn) {
+  if (!selectedLeft || btn.classList.contains('matched')) return;
+  if (selectedLeft.dataset.idx === btn.dataset.idx) {
+    selectedLeft.classList.add('matched');
+    btn.classList.add('matched');
+    selectedLeft.classList.remove('selected');
+    selectedLeft = null;
+    matchedCount++;
+    document.getElementById('match-status').textContent = `✔ Matched! (${matchedCount} / ${matchPairs.length})`;
+    if (matchedCount === matchPairs.length) {
+      document.getElementById('match-status').textContent = '🎉 Perfect! All matched!';
+    }
+  } else {
+    btn.classList.add('wrong');
+    selectedLeft.classList.add('wrong');
+    const sl = selectedLeft;
+    setTimeout(() => {
+      btn.classList.remove('wrong');
+      sl.classList.remove('wrong', 'selected');
+    }, 400);
+    selectedLeft = null;
+    document.getElementById('match-status').textContent = '✘ Try again!';
+  }
+}
+function resetMatch() { buildMatch(); }
+
+// ============ INIT ============
+buildQuiz();
+buildMatch();
+</script>
+</body>
+</html>
